@@ -15,9 +15,10 @@ const fullscreenButton = document.getElementById("fullscreenButton");
 const flipButton = document.getElementById("flipButton");
 const seekBar = document.getElementById("seekBar");
 const timeLabel = document.getElementById("timeLabel");
-const recenterCountdown = document.getElementById("recenterCountdown");
 const installPrompt = document.getElementById("installPrompt");
 const closeInstallPrompt = document.getElementById("closeInstallPrompt");
+const calibrationOverlay = document.getElementById("calibrationOverlay");
+const calibrationCount = document.getElementById("calibrationCount");
 const gazePointer = document.getElementById("gazePointer");
 const gazeProgress = document.getElementById("gazeProgress");
 
@@ -274,29 +275,36 @@ function applyRecenter() {
   centerPitch = latestPitch;
   dragYaw = 0;
   dragPitch = 0;
+  yaw = 0;
+  pitch = 0;
+  updateGazePosition();
+  updateWorldHudPosition();
 }
 
 function startRecenterCountdown() {
   clearTimeout(recenterTimer);
   clearInterval(recenterInterval);
-  setMenuOpen(true);
+  setMenuOpen(false);
+  showControlsForGaze();
 
   let remaining = 3;
-  recenterButton.textContent = "Hold Still";
-  recenterCountdown.textContent = String(remaining);
-  recenterCountdown.classList.remove("is-hidden");
+  recenterButton.textContent = "Calibrating";
+  calibrationCount.textContent = String(remaining);
+  calibrationOverlay.classList.remove("is-hidden");
+  gazeProgress.style.setProperty("--gaze-progress", "0deg");
+  clearGazeTarget();
 
   recenterInterval = window.setInterval(() => {
     remaining -= 1;
-    recenterCountdown.textContent = remaining > 0 ? String(remaining) : "Set";
+    calibrationCount.textContent = remaining > 0 ? String(remaining) : "Set";
   }, 1000);
 
   recenterTimer = window.setTimeout(() => {
     clearInterval(recenterInterval);
     applyRecenter();
     recenterButton.textContent = "Recenter";
-    recenterCountdown.classList.add("is-hidden");
-    setMenuOpen(false);
+    calibrationOverlay.classList.add("is-hidden");
+    showControlsForGaze();
   }, 3200);
 }
 

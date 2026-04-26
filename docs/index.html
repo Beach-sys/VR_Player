@@ -45,7 +45,6 @@
           <input id="videoInputSmall" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv">
           Open
         </label>
-        <div id="recenterCountdown" class="recenter-countdown is-hidden" aria-live="polite"></div>
       </div>
 
       <div class="bottom-panel timeline-panel">
@@ -59,6 +58,14 @@
     <div id="gazePointer" class="gaze-pointer is-hidden" aria-hidden="true">
       <div id="gazeProgress" class="gaze-progress"></div>
     </div>
+
+    <section id="calibrationOverlay" class="calibration-overlay is-hidden" aria-live="polite">
+      <div class="calibration-panel">
+        <div id="calibrationCount" class="calibration-count">3</div>
+        <h2>Calibrating View</h2>
+        <p>Put the phone in the headset, face your normal forward position, and hold still.</p>
+      </div>
+    </section>
 
     <section id="installPrompt" class="install-prompt is-hidden" aria-label="Fullscreen install instructions">
       <div class="install-panel">

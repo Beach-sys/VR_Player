@@ -105,7 +105,8 @@ video {
 }
 
 .install-prompt.is-hidden,
-.gaze-pointer.is-hidden {
+.gaze-pointer.is-hidden,
+.calibration-overlay.is-hidden {
   display: none;
 }
 
@@ -117,6 +118,55 @@ video {
   place-items: center;
   padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
   background: rgba(5, 7, 11, 0.72);
+}
+
+.calibration-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  background: rgba(5, 7, 11, 0.62);
+  pointer-events: none;
+}
+
+.calibration-panel {
+  width: min(420px, 86vw);
+  border: 1px solid rgba(45, 212, 191, 0.36);
+  border-radius: 8px;
+  padding: 18px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+}
+
+.calibration-count {
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  margin: 0 auto 12px;
+  border: 2px solid rgba(45, 212, 191, 0.72);
+  border-radius: 50%;
+  color: #f8fafc;
+  background: rgba(5, 7, 11, 0.72);
+  font-size: 48px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-panel h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.calibration-panel p {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.78);
+  line-height: 1.45;
 }
 
 .install-panel {
@@ -246,24 +296,6 @@ video {
 .radial-open {
   left: 27%;
   top: 27%;
-}
-
-.recenter-countdown {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  display: grid;
-  place-items: center;
-  width: 104px;
-  height: 104px;
-  transform: translate(-50%, -50%);
-  border: 2px solid rgba(45, 212, 191, 0.72);
-  border-radius: 50%;
-  color: #f8fafc;
-  background: rgba(5, 7, 11, 0.72);
-  font-size: 46px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
 }
 
 .seek-row {
