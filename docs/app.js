@@ -1,5 +1,5 @@
 const canvas = document.getElementById("stage");
-const gl = canvas.getContext("webgl", { alpha: false, antialias: false });
+const gl = canvas.getContext("webgl", { alpha: false, antialias: false, xrCompatible: true });
 const video = document.getElementById("video");
 const emptyState = document.getElementById("emptyState");
 const controls = document.getElementById("controls");
@@ -12,6 +12,7 @@ const headsetButton = document.getElementById("headsetButton");
 const formatButton = document.getElementById("formatButton");
 const recenterButton = document.getElementById("recenterButton");
 const fullscreenButton = document.getElementById("fullscreenButton");
+const xrButton = document.getElementById("xrButton");
 const flipButton = document.getElementById("flipButton");
 const seekBar = document.getElementById("seekBar");
 const timeLabel = document.getElementById("timeLabel");
@@ -58,6 +59,9 @@ let lastMotionAt = 0;
 let lastMotionYaw = 0;
 let lastMotionPitch = 0;
 let lastLookDownAt = 0;
+let xrSession = null;
+let xrReferenceSpace = null;
+let xrSupported = false;
 
 const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
@@ -175,6 +179,7 @@ flipButton.addEventListener("click", () => {
 });
 recenterButton.addEventListener("click", startRecenterCountdown);
 fullscreenButton.addEventListener("click", enterFullscreen);
+xrButton.addEventListener("click", toggleXR);
 closeInstallPrompt.addEventListener("click", () => {
   installPrompt.classList.add("is-hidden");
 });
@@ -214,6 +219,7 @@ video.addEventListener("loadedmetadata", updateTimeline);
 video.addEventListener("timeupdate", updateTimeline);
 window.addEventListener("resize", resize);
 updateFullscreenButton();
+checkXRSupport();
 resize();
 requestAnimationFrame(render);
 
@@ -354,6 +360,64 @@ function updateFullscreenButton() {
   }
 }
 
+async function checkXRSupport() {
+  if (!navigator.xr) {
+    xrButton.textContent = "No WebXR";
+    xrButton.disabled = true;
+    return;
+  }
+
+  try {
+    xrSupported = await navigator.xr.isSessionSupported("immersive-vr");
+    xrButton.textContent = xrSupported ? "WebXR" : "No WebXR";
+    xrButton.disabled = !xrSupported;
+  } catch {
+    xrButton.textContent = "No WebXR";
+    xrButton.disabled = true;
+  }
+}
+
+async function toggleXR() {
+  if (xrSession) {
+    xrSession.end();
+    return;
+  }
+
+  if (!navigator.xr || !xrSupported) {
+    xrButton.textContent = "No WebXR";
+    return;
+  }
+
+  try {
+    if (gl.makeXRCompatible) {
+      await gl.makeXRCompatible();
+    }
+
+    xrSession = await navigator.xr.requestSession("immersive-vr", {
+      optionalFeatures: ["local-floor", "bounded-floor", "dom-overlay"],
+      domOverlay: { root: document.body }
+    });
+    xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
+    xrReferenceSpace = await xrSession.requestReferenceSpace("local");
+    xrButton.textContent = "Exit XR";
+    xrButton.classList.add("is-active");
+    controlsVisible = true;
+    controls.classList.remove("is-hidden");
+    xrSession.addEventListener("end", endXR);
+    xrSession.requestAnimationFrame(renderXR);
+  } catch {
+    xrButton.textContent = "XR Failed";
+  }
+}
+
+function endXR() {
+  xrSession = null;
+  xrReferenceSpace = null;
+  xrButton.textContent = xrSupported ? "WebXR" : "No WebXR";
+  xrButton.classList.toggle("is-active", false);
+  requestAnimationFrame(render);
+}
+
 function isStandalone() {
   return window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
 }
@@ -367,16 +431,15 @@ function isIPhoneSafari() {
 }
 
 function render() {
+  if (xrSession) {
+    return;
+  }
+
   resize();
   updateWorldHudPosition();
   updateGazeControls();
   updateTimeline();
-  if (shouldUploadTexture()) {
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-    shouldUploadVideoFrame = false;
-    lastUploadedVideoTime = video.currentTime;
-  }
+  uploadVideoTextureIfNeeded();
 
   gl.clearColor(0.02, 0.03, 0.05, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -398,6 +461,30 @@ function render() {
   requestAnimationFrame(render);
 }
 
+function renderXR(_time, frame) {
+  const session = frame.session;
+  const pose = frame.getViewerPose(xrReferenceSpace);
+
+  uploadVideoTextureIfNeeded();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
+  gl.clearColor(0.02, 0.03, 0.05, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  if (pose) {
+    for (const view of pose.views) {
+      const viewport = session.renderState.baseLayer.getViewport(view);
+      gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+      gl.uniformMatrix4fv(locations.matrix, false, multiply(view.projectionMatrix, view.transform.inverse.matrix));
+      gl.uniform1f(locations.eye, view.eye === "right" ? 1 : 0);
+      gl.uniform1f(locations.sideBySide, sideBySide ? 1 : 0);
+      gl.uniform1f(locations.flipY, videoFlipY ? 1 : 0);
+      gl.drawElements(gl.TRIANGLES, mesh.indices.length, gl.UNSIGNED_SHORT, 0);
+    }
+  }
+
+  session.requestAnimationFrame(renderXR);
+}
+
 function resize() {
   const ratio = Math.min(window.devicePixelRatio || 1, 1.25);
   const width = Math.floor(canvas.clientWidth * ratio);
@@ -406,6 +493,17 @@ function resize() {
     canvas.width = width;
     canvas.height = height;
   }
+}
+
+function uploadVideoTextureIfNeeded() {
+  if (!shouldUploadTexture()) {
+    return;
+  }
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+  shouldUploadVideoFrame = false;
+  lastUploadedVideoTime = video.currentTime;
 }
 
 function startVideoFrameCallbacks() {

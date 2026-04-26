@@ -305,6 +305,11 @@ video {
   top: 27%;
 }
 
+.radial-xr {
+  left: 17%;
+  top: 63%;
+}
+
 .seek-row {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto;
