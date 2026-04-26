@@ -1,37 +1,33 @@
-# VR Local Player
+# VR Player Web App
 
-This repository contains a browser-based VR local video player you can host with GitHub Pages and use on an iPhone.
+This is the GitHub Pages version of VR Player. It runs in the browser on your iPhone, opens a local video file from Files, and renders side-by-side VR180 video in a split headset view.
 
-The web app is in `docs/`.
+## GitHub Pages setup
 
-## Use On iPhone
+1. Push this repository to GitHub.
+2. Open the repository on GitHub.
+3. Go to **Settings** > **Pages**.
+4. Under **Build and deployment**, choose **Deploy from a branch**.
+5. Choose your main branch and the `/docs` folder.
+6. Save, then open the GitHub Pages URL on your iPhone.
 
-1. Host this repo with GitHub Pages from the `/docs` folder.
-2. Open the GitHub Pages URL in Safari on your iPhone.
-3. Tap **Open Video** and choose your local side-by-side VR180 video.
-4. Tap **Enable Motion** and allow motion/orientation access.
-5. Keep **Headset** and **SBS 3D** enabled.
-6. Turn the phone landscape, put it in your headset, and tap **Recenter**.
+## iPhone use
 
-For the most app-like experience, open the page in Safari, tap Share, then **Add to Home Screen**.
+1. Open the GitHub Pages URL in Safari.
+2. Tap **Open Video** and choose your local side-by-side VR180 file.
+3. Tap **Enable Motion** and allow motion/orientation access.
+4. Keep **Headset** and **SBS 3D** enabled.
+5. Turn the phone landscape, put it in the headset, then tap **Recenter**.
+6. Look back toward the video's centered view to see the world-locked timeline and **Menu** button.
+7. Look at **Menu** for about one second to open the circular options menu.
+8. Look at the timeline for about one second to jump to that part of the video.
 
-## GitHub Pages
+## Important iPhone notes
 
-After uploading this repository to GitHub:
-
-1. Go to **Settings** > **Pages**.
-2. Under **Build and deployment**, choose **Deploy from a branch**.
-3. Choose your main branch.
-4. Choose the `/docs` folder.
-5. Save.
-
-GitHub will give you a Pages URL after it deploys.
-
-## Notes
-
-- The selected video stays local on your phone. It is not uploaded to GitHub.
-- iPhone motion access requires HTTPS and a tap on **Enable Motion**.
-- GitHub Pages provides HTTPS.
-- This expects already converted equirectangular VR180 side-by-side video.
-- Raw dual-fisheye footage may look warped unless converted first.
-
+- Device motion requires HTTPS. GitHub Pages provides HTTPS.
+- For real full screen on iPhone, open the page in Safari, tap Share, then **Add to Home Screen**. iPhone Safari does not let a web page force true full screen with JavaScript.
+- iPhone browser fullscreen support is limited compared with Android. Installed-to-home-screen mode is usually the best option.
+- The video stays local on your phone. The browser reads it from the file picker; it is not uploaded to GitHub.
+- This expects already converted equirectangular VR180 side-by-side video, not raw dual-fisheye camera footage.
+- Very large files can still take time to open because Safari has to read metadata, decode the video, and feed frames into WebGL locally.
+- If a video appears upside down, use **Flip On/Off** manually. The app leaves flipping off by default.
