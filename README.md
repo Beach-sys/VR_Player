@@ -1,6 +1,6 @@
-# VR180 Local Player
+# VR Local Player
 
-This repository contains a browser-based VR180 local video player you can host with GitHub Pages and use on an iPhone.
+This repository contains a browser-based VR local video player you can host with GitHub Pages and use on an iPhone.
 
 The web app is in `docs/`.
 
