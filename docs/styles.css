@@ -183,12 +183,12 @@ video {
 .radial-menu {
   position: absolute;
   left: 50%;
-  top: -168px;
+  top: -210px;
   z-index: 3;
-  width: min(58vw, 300px);
-  height: min(58vw, 300px);
-  max-width: min(58vh, 300px);
-  max-height: min(58vh, 300px);
+  width: min(72vw, 390px);
+  height: min(72vw, 390px);
+  max-width: min(72vh, 390px);
+  max-height: min(72vh, 390px);
   transform: translate(-50%, -50%);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 50%;
@@ -200,52 +200,70 @@ video {
 
 .radial-item {
   position: absolute;
-  width: 78px;
-  min-height: 34px;
-  padding: 7px 8px;
-  font-size: 12px;
+  width: 98px;
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: 13px;
   transform: translate(-50%, -50%);
   text-align: center;
 }
 
 .radial-play {
   left: 50%;
-  top: 19%;
+  top: 17%;
 }
 
 .radial-motion {
-  left: 72%;
-  top: 28%;
+  left: 73%;
+  top: 27%;
 }
 
 .radial-headset {
-  left: 79%;
+  left: 83%;
   top: 50%;
 }
 
 .radial-format {
-  left: 72%;
-  top: 72%;
+  left: 73%;
+  top: 73%;
 }
 
 .radial-flip {
   left: 50%;
-  top: 81%;
+  top: 83%;
 }
 
 .radial-recenter {
-  left: 28%;
-  top: 72%;
+  left: 27%;
+  top: 73%;
 }
 
 .radial-fullscreen {
-  left: 21%;
+  left: 17%;
   top: 50%;
 }
 
 .radial-open {
-  left: 28%;
-  top: 28%;
+  left: 27%;
+  top: 27%;
+}
+
+.recenter-countdown {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(45, 212, 191, 0.72);
+  border-radius: 50%;
+  color: #f8fafc;
+  background: rgba(5, 7, 11, 0.72);
+  font-size: 46px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .seek-row {

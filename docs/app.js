@@ -15,6 +15,7 @@ const fullscreenButton = document.getElementById("fullscreenButton");
 const flipButton = document.getElementById("flipButton");
 const seekBar = document.getElementById("seekBar");
 const timeLabel = document.getElementById("timeLabel");
+const recenterCountdown = document.getElementById("recenterCountdown");
 const installPrompt = document.getElementById("installPrompt");
 const closeInstallPrompt = document.getElementById("closeInstallPrompt");
 const gazePointer = document.getElementById("gazePointer");
@@ -47,6 +48,8 @@ let lastGazeActionAt = 0;
 let isSeeking = false;
 let menuOpen = false;
 let hudInteractive = true;
+let recenterTimer = 0;
+let recenterInterval = 0;
 
 const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
@@ -160,7 +163,7 @@ flipButton.addEventListener("click", () => {
   flipButton.classList.toggle("is-active", videoFlipY);
   flipButton.textContent = videoFlipY ? "Flip On" : "Flip Off";
 });
-recenterButton.addEventListener("click", recenter);
+recenterButton.addEventListener("click", startRecenterCountdown);
 fullscreenButton.addEventListener("click", enterFullscreen);
 closeInstallPrompt.addEventListener("click", () => {
   installPrompt.classList.add("is-hidden");
@@ -237,7 +240,7 @@ async function enableMotion() {
     motionButton.classList.add("is-active");
     controlsVisible = true;
     controls.classList.remove("is-hidden");
-    recenter();
+    applyRecenter();
   } catch {
     motionButton.textContent = "Motion Blocked";
   }
@@ -266,11 +269,35 @@ function handleOrientation(event) {
   updateGazePosition();
 }
 
-function recenter() {
+function applyRecenter() {
   centerYaw = latestYaw;
   centerPitch = latestPitch;
   dragYaw = 0;
   dragPitch = 0;
+}
+
+function startRecenterCountdown() {
+  clearTimeout(recenterTimer);
+  clearInterval(recenterInterval);
+  setMenuOpen(true);
+
+  let remaining = 3;
+  recenterButton.textContent = "Hold Still";
+  recenterCountdown.textContent = String(remaining);
+  recenterCountdown.classList.remove("is-hidden");
+
+  recenterInterval = window.setInterval(() => {
+    remaining -= 1;
+    recenterCountdown.textContent = remaining > 0 ? String(remaining) : "Set";
+  }, 1000);
+
+  recenterTimer = window.setTimeout(() => {
+    clearInterval(recenterInterval);
+    applyRecenter();
+    recenterButton.textContent = "Recenter";
+    recenterCountdown.classList.add("is-hidden");
+    setMenuOpen(false);
+  }, 3200);
 }
 
 function enterFullscreen() {

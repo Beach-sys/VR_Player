@@ -17,7 +17,7 @@ This is the GitHub Pages version of VR Player. It runs in the browser on your iP
 2. Tap **Open Video** and choose your local side-by-side VR180 file.
 3. Tap **Enable Motion** and allow motion/orientation access.
 4. Keep **Headset** and **SBS 3D** enabled.
-5. Turn the phone landscape, put it in the headset, then tap **Recenter**.
+5. Turn the phone landscape, put it in the headset, then choose **Recenter**. You get a short countdown to position your head before the view resets.
 6. Look back toward the video's centered view to see the world-locked timeline and **Menu** button.
 7. Look at **Menu** for about one second to open the circular options menu.
 8. Look at the timeline for about one second to jump to that part of the video.
