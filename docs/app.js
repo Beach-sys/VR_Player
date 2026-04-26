@@ -46,10 +46,12 @@ let gazeStartedAt = 0;
 let lastGazeActionAt = 0;
 let isSeeking = false;
 let menuOpen = false;
+let hudInteractive = true;
 
 const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
-const maxPitch = degToRad(65);
+const maxPitch = degToRad(88);
+const hudPitchAnchor = degToRad(-25);
 
 if (!gl) {
   emptyState.querySelector("p").textContent = "This browser does not support WebGL, which is needed for spherical playback.";
@@ -314,6 +316,7 @@ function isIPhoneSafari() {
 
 function render() {
   resize();
+  updateWorldHudPosition();
   updateGazeControls();
   updateTimeline();
   if (shouldUploadTexture()) {
@@ -438,15 +441,21 @@ function seekToRatio(ratio) {
 }
 
 function updateGazePosition() {
-  const xRange = window.innerWidth * 0.34;
-  const yRange = window.innerHeight * 0.34;
-  gazeX = clamp(window.innerWidth / 2 + normalizeAngle(yaw) * xRange, 18, window.innerWidth - 18);
-  gazeY = clamp(window.innerHeight / 2 + pitch * yRange, 18, window.innerHeight - 18);
+  gazeX = window.innerWidth / 2;
+  gazeY = window.innerHeight / 2;
 }
 
 function updateGazeControls() {
   if (!motionEnabled) {
     gazePointer.classList.add("is-hidden");
+    clearGazeTarget();
+    return;
+  }
+
+  if (!hudInteractive) {
+    gazePointer.classList.remove("is-hidden");
+    gazePointer.style.transform = `translate3d(${gazeX}px, ${gazeY}px, 0)`;
+    gazeProgress.style.setProperty("--gaze-progress", "0deg");
     clearGazeTarget();
     return;
   }
@@ -484,6 +493,23 @@ function updateGazeControls() {
     gazeStartedAt = now;
     gazeProgress.style.setProperty("--gaze-progress", "0deg");
   }
+}
+
+function updateWorldHudPosition() {
+  if (!controlsVisible) return;
+
+  const viewYaw = normalizeAngle(yaw + dragYaw);
+  const viewPitch = clamp(pitch + dragPitch, -maxPitch, maxPitch);
+  const horizontalScale = window.innerWidth / degToRad(headsetMode ? 72 : 82);
+  const verticalScale = window.innerHeight / degToRad(62);
+  const offsetX = -viewYaw * horizontalScale;
+  const offsetY = (viewPitch - hudPitchAnchor) * verticalScale;
+  const distance = Math.hypot(offsetX / window.innerWidth, offsetY / window.innerHeight);
+  const opacity = clamp(1.15 - distance * 1.8, 0, 1);
+  hudInteractive = opacity > 0.18;
+
+  controls.style.transform = `translate(-50%, -50%) translate3d(${offsetX}px, ${offsetY}px, 0)`;
+  controls.style.opacity = String(opacity);
 }
 
 function activateGazeTarget(target) {

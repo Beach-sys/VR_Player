@@ -83,20 +83,20 @@ video {
 
 .controls {
   position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding:
-    max(12px, env(safe-area-inset-top))
-    max(12px, env(safe-area-inset-right))
-    max(12px, env(safe-area-inset-bottom))
-    max(12px, env(safe-area-inset-left));
-  background: linear-gradient(180deg, rgba(5, 7, 11, 0.58), transparent 30%, transparent 54%, rgba(5, 7, 11, 0.7));
+  left: 50%;
+  top: 68%;
+  z-index: 3;
+  width: min(82vw, 720px);
+  display: grid;
+  gap: 12px;
   pointer-events: none;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
 }
 
-.controls > * {
+.top-row,
+.timeline-panel,
+.radial-menu {
   pointer-events: auto;
 }
 
@@ -158,6 +158,13 @@ video {
 
 .top-row {
   min-height: 44px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 11, 0.58);
+  backdrop-filter: blur(14px);
 }
 
 .bottom-panel {
@@ -166,17 +173,22 @@ video {
 
 .timeline-panel {
   width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 11, 0.58);
+  backdrop-filter: blur(14px);
 }
 
 .radial-menu {
-  position: fixed;
+  position: absolute;
   left: 50%;
-  top: 50%;
+  top: -168px;
   z-index: 3;
-  width: min(76vw, 430px);
-  height: min(76vw, 430px);
-  max-width: min(76vh, 430px);
-  max-height: min(76vh, 430px);
+  width: min(58vw, 300px);
+  height: min(58vw, 300px);
+  max-width: min(58vh, 300px);
+  max-height: min(58vh, 300px);
   transform: translate(-50%, -50%);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 50%;
@@ -188,52 +200,52 @@ video {
 
 .radial-item {
   position: absolute;
-  width: 96px;
-  min-height: 40px;
-  padding: 8px 10px;
-  font-size: 13px;
+  width: 78px;
+  min-height: 34px;
+  padding: 7px 8px;
+  font-size: 12px;
   transform: translate(-50%, -50%);
   text-align: center;
 }
 
 .radial-play {
   left: 50%;
-  top: 17%;
+  top: 19%;
 }
 
 .radial-motion {
-  left: 75%;
-  top: 25%;
+  left: 72%;
+  top: 28%;
 }
 
 .radial-headset {
-  left: 83%;
+  left: 79%;
   top: 50%;
 }
 
 .radial-format {
-  left: 75%;
-  top: 75%;
+  left: 72%;
+  top: 72%;
 }
 
 .radial-flip {
   left: 50%;
-  top: 83%;
+  top: 81%;
 }
 
 .radial-recenter {
-  left: 25%;
-  top: 75%;
+  left: 28%;
+  top: 72%;
 }
 
 .radial-fullscreen {
-  left: 17%;
+  left: 21%;
   top: 50%;
 }
 
 .radial-open {
-  left: 25%;
-  top: 25%;
+  left: 28%;
+  top: 28%;
 }
 
 .seek-row {

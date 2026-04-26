@@ -1,6 +1,6 @@
-# VR Local Player Web App
+# VR Player Web App
 
-This is the GitHub Pages version of the local VR player. It runs in the browser on your iPhone, opens a local video file from Files, and renders side-by-side VR180 video in a split headset view.
+This is the GitHub Pages version of VR Player. It runs in the browser on your iPhone, opens a local video file from Files, and renders side-by-side VR180 video in a split headset view.
 
 ## GitHub Pages setup
 
@@ -18,7 +18,9 @@ This is the GitHub Pages version of the local VR player. It runs in the browser 
 3. Tap **Enable Motion** and allow motion/orientation access.
 4. Keep **Headset** and **SBS 3D** enabled.
 5. Turn the phone landscape, put it in the headset, then tap **Recenter**.
-6. Keep your gaze on a control for about one second to activate it without touching the screen.
+6. Look back toward the video's centered view to see the world-locked timeline and **Menu** button.
+7. Look at **Menu** for about one second to open the circular options menu.
+8. Look at the timeline for about one second to jump to that part of the video.
 
 ## Important iPhone notes
 
@@ -28,4 +30,4 @@ This is the GitHub Pages version of the local VR player. It runs in the browser 
 - The video stays local on your phone. The browser reads it from the file picker; it is not uploaded to GitHub.
 - This expects already converted equirectangular VR180 side-by-side video, not raw dual-fisheye camera footage.
 - Very large files can still take time to open because Safari has to read metadata, decode the video, and feed frames into WebGL locally.
-- If a video appears upside down, use **Flip On/Off**. Different VR180 exports disagree about vertical orientation.
+- If a video appears upside down, use **Flip On/Off** manually. The app leaves flipping off by default.
