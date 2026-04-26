@@ -35,4 +35,3 @@ GitHub will give you a Pages URL after it deploys.
 - This expects already converted equirectangular VR180 side-by-side video.
 - Raw dual-fisheye footage may look warped unless converted first.
 
-The original native iOS Xcode version is still in `VR180LocalPlayer/`, but the GitHub Pages app does not need Xcode.
