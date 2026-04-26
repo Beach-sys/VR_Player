@@ -18,11 +18,14 @@ This is the GitHub Pages version of the local VR180 player. It runs in the brows
 3. Tap **Enable Motion** and allow motion/orientation access.
 4. Keep **Headset** and **SBS 3D** enabled.
 5. Turn the phone landscape, put it in the headset, then tap **Recenter**.
+6. Keep your gaze on a control for about one second to activate it without touching the screen.
 
 ## Important iPhone notes
 
 - Device motion requires HTTPS. GitHub Pages provides HTTPS.
-- For a more app-like fullscreen experience, open the page in Safari, tap Share, then **Add to Home Screen**.
+- For real full screen on iPhone, open the page in Safari, tap Share, then **Add to Home Screen**. iPhone Safari does not let a web page force true full screen with JavaScript.
 - iPhone browser fullscreen support is limited compared with Android. Installed-to-home-screen mode is usually the best option.
 - The video stays local on your phone. The browser reads it from the file picker; it is not uploaded to GitHub.
 - This expects already converted equirectangular VR180 side-by-side video, not raw dual-fisheye camera footage.
+- Very large files can still take time to open because Safari has to read metadata, decode the video, and feed frames into WebGL locally.
+- If a video appears upside down, use **Flip On/Off**. Different VR180 exports disagree about vertical orientation.

@@ -29,7 +29,7 @@
 
     <section id="controls" class="controls is-hidden" aria-label="Playback controls">
       <div class="top-row">
-        <label class="tool-button">
+        <label class="tool-button" data-gaze-action="open">
           <input id="videoInputSmall" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv">
           Open
         </label>
@@ -37,12 +37,34 @@
       </div>
 
       <div class="bottom-panel">
-        <button id="playButton" type="button" class="primary-button">Pause</button>
-        <button id="motionButton" type="button" class="tool-button">Enable Motion</button>
-        <button id="headsetButton" type="button" class="tool-button is-active">Headset</button>
-        <button id="formatButton" type="button" class="tool-button is-active">SBS 3D</button>
-        <button id="recenterButton" type="button" class="tool-button">Recenter</button>
-        <button id="fullscreenButton" type="button" class="tool-button">Fullscreen</button>
+        <div class="seek-row">
+          <input id="seekBar" type="range" min="0" max="1000" value="0" step="1" aria-label="Video timeline" data-gaze-action="seek">
+          <div id="timeLabel" class="time-label">0:00 / 0:00</div>
+        </div>
+        <button id="playButton" type="button" class="primary-button" data-gaze-action="click">Pause</button>
+        <button id="motionButton" type="button" class="tool-button" data-gaze-action="click">Enable Motion</button>
+        <button id="headsetButton" type="button" class="tool-button is-active" data-gaze-action="click">Headset</button>
+        <button id="formatButton" type="button" class="tool-button is-active" data-gaze-action="click">SBS 3D</button>
+        <button id="flipButton" type="button" class="tool-button is-active" data-gaze-action="click">Flip On</button>
+        <button id="recenterButton" type="button" class="tool-button" data-gaze-action="click">Recenter</button>
+        <button id="fullscreenButton" type="button" class="tool-button" data-gaze-action="click">Fullscreen</button>
+      </div>
+    </section>
+
+    <div id="gazePointer" class="gaze-pointer is-hidden" aria-hidden="true">
+      <div id="gazeProgress" class="gaze-progress"></div>
+    </div>
+
+    <section id="installPrompt" class="install-prompt is-hidden" aria-label="Fullscreen install instructions">
+      <div class="install-panel">
+        <h2>Open Full Screen</h2>
+        <p>On iPhone, Safari cannot force this page into true full screen. Add it to your Home Screen, then open it from the new app icon.</p>
+        <ol>
+          <li>Tap the Safari Share button.</li>
+          <li>Choose Add to Home Screen.</li>
+          <li>Open VR180 from your Home Screen.</li>
+        </ol>
+        <button id="closeInstallPrompt" type="button" class="primary-button">Got It</button>
       </div>
     </section>
 

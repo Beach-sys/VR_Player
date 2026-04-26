@@ -104,6 +104,51 @@ video {
   display: none;
 }
 
+.install-prompt.is-hidden,
+.gaze-pointer.is-hidden {
+  display: none;
+}
+
+.install-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  background: rgba(5, 7, 11, 0.72);
+}
+
+.install-panel {
+  width: min(420px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.install-panel h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.install-panel p,
+.install-panel li {
+  color: rgba(248, 250, 252, 0.78);
+  line-height: 1.45;
+}
+
+.install-panel p {
+  margin: 0 0 12px;
+}
+
+.install-panel ol {
+  margin: 0 0 16px;
+  padding-left: 22px;
+}
+
 .top-row,
 .bottom-panel {
   display: flex;
@@ -117,6 +162,28 @@ video {
 
 .bottom-panel {
   flex-wrap: wrap;
+}
+
+.seek-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+#seekBar {
+  width: 100%;
+  min-width: 0;
+  accent-color: #14b8a6;
+}
+
+.time-label {
+  min-width: 88px;
+  color: rgba(248, 250, 252, 0.78);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: right;
 }
 
 .file-name {
@@ -151,6 +218,41 @@ video {
 .tool-button.is-active {
   background: rgba(45, 212, 191, 0.22);
   border-color: rgba(45, 212, 191, 0.56);
+}
+
+.gaze-pointer {
+  position: fixed;
+  z-index: 4;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate3d(50vw, 50vh, 0);
+  box-shadow: 0 0 18px rgba(20, 184, 166, 0.55);
+}
+
+.gaze-pointer::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: #14b8a6;
+}
+
+.gaze-progress {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: conic-gradient(#14b8a6 var(--gaze-progress, 0deg), transparent 0deg);
+  opacity: 0.75;
+  z-index: -1;
+}
+
+.gaze-target {
+  outline: 2px solid rgba(45, 212, 191, 0.9);
+  outline-offset: 3px;
 }
 
 input[type="file"] {

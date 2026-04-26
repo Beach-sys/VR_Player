@@ -10,9 +10,17 @@ const headsetButton = document.getElementById("headsetButton");
 const formatButton = document.getElementById("formatButton");
 const recenterButton = document.getElementById("recenterButton");
 const fullscreenButton = document.getElementById("fullscreenButton");
+const flipButton = document.getElementById("flipButton");
+const seekBar = document.getElementById("seekBar");
+const timeLabel = document.getElementById("timeLabel");
+const installPrompt = document.getElementById("installPrompt");
+const closeInstallPrompt = document.getElementById("closeInstallPrompt");
+const gazePointer = document.getElementById("gazePointer");
+const gazeProgress = document.getElementById("gazeProgress");
 
 let headsetMode = true;
 let sideBySide = true;
+let videoFlipY = true;
 let motionEnabled = false;
 let controlsVisible = true;
 let yaw = 0;
@@ -26,6 +34,18 @@ let latestPitch = 0;
 let dragging = false;
 let lastPointer = { x: 0, y: 0 };
 let hideControlsTimer = 0;
+let shouldUploadVideoFrame = true;
+let videoFrameCallbackStarted = false;
+let lastUploadedVideoTime = -1;
+let gazeX = window.innerWidth / 2;
+let gazeY = window.innerHeight / 2;
+let gazeTarget = null;
+let gazeStartedAt = 0;
+let lastGazeActionAt = 0;
+let isSeeking = false;
+
+const gazeDwellMs = 900;
+const gazeCooldownMs = 650;
 
 if (!gl) {
   emptyState.querySelector("p").textContent = "This browser does not support WebGL, which is needed for spherical playback.";
@@ -47,11 +67,15 @@ precision mediump float;
 uniform sampler2D uVideo;
 uniform float uEye;
 uniform float uSideBySide;
+uniform float uFlipY;
 varying vec2 vTexCoord;
 void main() {
   vec2 uv = vTexCoord;
   if (uSideBySide > 0.5) {
     uv.x = uv.x * 0.5 + uEye * 0.5;
+  }
+  if (uFlipY > 0.5) {
+    uv.y = 1.0 - uv.y;
   }
   gl_FragColor = texture2D(uVideo, uv);
 }
@@ -69,7 +93,8 @@ const locations = {
   matrix: gl.getUniformLocation(program, "uMatrix"),
   video: gl.getUniformLocation(program, "uVideo"),
   eye: gl.getUniformLocation(program, "uEye"),
-  sideBySide: gl.getUniformLocation(program, "uSideBySide")
+  sideBySide: gl.getUniformLocation(program, "uSideBySide"),
+  flipY: gl.getUniformLocation(program, "uFlipY")
 };
 
 const mesh = makeHalfSphere(64, 48, 30);
@@ -122,8 +147,20 @@ formatButton.addEventListener("click", () => {
   formatButton.classList.toggle("is-active", sideBySide);
   formatButton.textContent = sideBySide ? "SBS 3D" : "Mono";
 });
+flipButton.addEventListener("click", () => {
+  videoFlipY = !videoFlipY;
+  flipButton.classList.toggle("is-active", videoFlipY);
+  flipButton.textContent = videoFlipY ? "Flip On" : "Flip Off";
+});
 recenterButton.addEventListener("click", recenter);
 fullscreenButton.addEventListener("click", enterFullscreen);
+closeInstallPrompt.addEventListener("click", () => {
+  installPrompt.classList.add("is-hidden");
+});
+
+seekBar.addEventListener("input", () => {
+  seekToRatio(Number(seekBar.value) / Number(seekBar.max));
+});
 
 canvas.addEventListener("click", () => {
   controlsVisible = !controlsVisible;
@@ -152,7 +189,10 @@ canvas.addEventListener("pointerup", () => {
 
 video.addEventListener("play", updatePlayButton);
 video.addEventListener("pause", updatePlayButton);
+video.addEventListener("loadedmetadata", updateTimeline);
+video.addEventListener("timeupdate", updateTimeline);
 window.addEventListener("resize", resize);
+updateFullscreenButton();
 resize();
 requestAnimationFrame(render);
 
@@ -163,12 +203,16 @@ function openVideo(event) {
   video.src = url;
   video.loop = false;
   video.muted = false;
+  shouldUploadVideoFrame = true;
+  lastUploadedVideoTime = -1;
+  startVideoFrameCallbacks();
   video.play();
   fileName.textContent = file.name;
   emptyState.classList.add("is-hidden");
   controls.classList.remove("is-hidden");
   controlsVisible = true;
   updatePlayButton();
+  updateTimeline();
   scheduleControlsHide();
 }
 
@@ -183,6 +227,8 @@ async function enableMotion() {
     motionEnabled = true;
     motionButton.textContent = "Motion On";
     motionButton.classList.add("is-active");
+    controlsVisible = true;
+    controls.classList.remove("is-hidden");
     recenter();
   } catch {
     motionButton.textContent = "Motion Blocked";
@@ -198,13 +244,14 @@ function handleOrientation(event) {
 
   latestYaw = alpha;
   if (Math.abs(orientation) === 90) {
-    latestPitch = clamp(-gamma, -Math.PI / 2, Math.PI / 2);
+    latestPitch = clamp(gamma, -Math.PI / 2, Math.PI / 2);
   } else {
     latestPitch = clamp(beta - Math.PI / 2, -Math.PI / 2, Math.PI / 2);
   }
 
-  yaw = latestYaw - centerYaw;
+  yaw = normalizeAngle(latestYaw - centerYaw);
   pitch = latestPitch - centerPitch;
+  updateGazePosition();
 }
 
 function recenter() {
@@ -215,22 +262,55 @@ function recenter() {
 }
 
 function enterFullscreen() {
+  if (isIPhoneSafari() && !isStandalone()) {
+    installPrompt.classList.remove("is-hidden");
+    return;
+  }
+
   if (document.fullscreenElement) {
     document.exitFullscreen();
     return;
   }
+
   if (canvas.requestFullscreen) {
     canvas.requestFullscreen();
+  } else if (canvas.webkitRequestFullscreen) {
+    canvas.webkitRequestFullscreen();
   } else {
-    document.body.classList.add("standalone-hint");
+    controlsVisible = false;
+    controls.classList.add("is-hidden");
   }
+}
+
+function updateFullscreenButton() {
+  if (isStandalone()) {
+    fullscreenButton.textContent = "Hide Controls";
+  } else if (isIPhoneSafari()) {
+    fullscreenButton.textContent = "Install Fullscreen";
+  }
+}
+
+function isStandalone() {
+  return window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+}
+
+function isIPhoneSafari() {
+  const ua = navigator.userAgent;
+  const isIPhone = /iPhone|iPod/.test(ua);
+  const isWebKit = /WebKit/.test(ua);
+  const isOtherIOSBrowser = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  return isIPhone && isWebKit && !isOtherIOSBrowser;
 }
 
 function render() {
   resize();
-  if (video.readyState >= 2) {
+  updateGazeControls();
+  updateTimeline();
+  if (shouldUploadTexture()) {
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    shouldUploadVideoFrame = false;
+    lastUploadedVideoTime = video.currentTime;
   }
 
   gl.clearColor(0.02, 0.03, 0.05, 1);
@@ -246,6 +326,7 @@ function render() {
     gl.uniformMatrix4fv(locations.matrix, false, matrix);
     gl.uniform1f(locations.eye, eyes === 2 ? eye : 0);
     gl.uniform1f(locations.sideBySide, sideBySide ? 1 : 0);
+    gl.uniform1f(locations.flipY, videoFlipY ? 1 : 0);
     gl.drawElements(gl.TRIANGLES, mesh.indices.length, gl.UNSIGNED_SHORT, 0);
   }
 
@@ -253,7 +334,7 @@ function render() {
 }
 
 function resize() {
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const ratio = Math.min(window.devicePixelRatio || 1, 1.25);
   const width = Math.floor(canvas.clientWidth * ratio);
   const height = Math.floor(canvas.clientHeight * ratio);
   if (canvas.width !== width || canvas.height !== height) {
@@ -262,8 +343,37 @@ function resize() {
   }
 }
 
+function startVideoFrameCallbacks() {
+  if (videoFrameCallbackStarted || typeof video.requestVideoFrameCallback !== "function") {
+    return;
+  }
+
+  videoFrameCallbackStarted = true;
+  const markFrameReady = () => {
+    shouldUploadVideoFrame = true;
+    video.requestVideoFrameCallback(markFrameReady);
+  };
+  video.requestVideoFrameCallback(markFrameReady);
+}
+
+function shouldUploadTexture() {
+  if (video.readyState < 2) {
+    return false;
+  }
+
+  if (typeof video.requestVideoFrameCallback === "function") {
+    return shouldUploadVideoFrame;
+  }
+
+  return video.currentTime !== lastUploadedVideoTime;
+}
+
 function scheduleControlsHide() {
   clearTimeout(hideControlsTimer);
+  if (motionEnabled && headsetMode) {
+    return;
+  }
+
   hideControlsTimer = setTimeout(() => {
     if (!video.paused && controlsVisible) {
       controlsVisible = false;
@@ -274,6 +384,106 @@ function scheduleControlsHide() {
 
 function updatePlayButton() {
   playButton.textContent = video.paused ? "Play" : "Pause";
+}
+
+function updateTimeline() {
+  const duration = video.duration;
+  if (!Number.isFinite(duration) || duration <= 0) {
+    seekBar.value = "0";
+    timeLabel.textContent = "0:00 / 0:00";
+    return;
+  }
+
+  if (!isSeeking) {
+    seekBar.value = String(Math.round((video.currentTime / duration) * Number(seekBar.max)));
+  }
+  timeLabel.textContent = `${formatTime(video.currentTime)} / ${formatTime(duration)}`;
+}
+
+function seekToRatio(ratio) {
+  const duration = video.duration;
+  if (!Number.isFinite(duration) || duration <= 0) return;
+  isSeeking = true;
+  video.currentTime = clamp(ratio, 0, 1) * duration;
+  shouldUploadVideoFrame = true;
+  updateTimeline();
+  window.setTimeout(() => {
+    isSeeking = false;
+  }, 150);
+}
+
+function updateGazePosition() {
+  const xRange = window.innerWidth * 0.34;
+  const yRange = window.innerHeight * 0.34;
+  gazeX = clamp(window.innerWidth / 2 + normalizeAngle(yaw) * xRange, 18, window.innerWidth - 18);
+  gazeY = clamp(window.innerHeight / 2 + pitch * yRange, 18, window.innerHeight - 18);
+}
+
+function updateGazeControls() {
+  if (!motionEnabled || !controlsVisible) {
+    gazePointer.classList.add("is-hidden");
+    clearGazeTarget();
+    return;
+  }
+
+  gazePointer.classList.remove("is-hidden");
+  gazePointer.style.transform = `translate3d(${gazeX}px, ${gazeY}px, 0)`;
+
+  const element = document.elementFromPoint(gazeX, gazeY);
+  const target = element?.closest("[data-gaze-action]");
+  const now = performance.now();
+
+  if (!target || target.disabled) {
+    gazeProgress.style.setProperty("--gaze-progress", "0deg");
+    clearGazeTarget();
+    return;
+  }
+
+  if (target !== gazeTarget) {
+    clearGazeTarget();
+    gazeTarget = target;
+    gazeTarget.classList.add("gaze-target");
+    gazeStartedAt = now;
+  }
+
+  const progress = clamp((now - gazeStartedAt) / gazeDwellMs, 0, 1);
+  gazeProgress.style.setProperty("--gaze-progress", `${Math.round(progress * 360)}deg`);
+
+  if (progress >= 1 && now - lastGazeActionAt > gazeCooldownMs) {
+    activateGazeTarget(target);
+    lastGazeActionAt = now;
+    gazeStartedAt = now;
+    gazeProgress.style.setProperty("--gaze-progress", "0deg");
+  }
+}
+
+function activateGazeTarget(target) {
+  if (target === seekBar) {
+    const rect = seekBar.getBoundingClientRect();
+    seekToRatio((gazeX - rect.left) / rect.width);
+    return;
+  }
+
+  target.click();
+}
+
+function clearGazeTarget() {
+  if (gazeTarget) {
+    gazeTarget.classList.remove("gaze-target");
+    gazeTarget = null;
+  }
+}
+
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds)) return "0:00";
+  const whole = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const remaining = whole % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(remaining).padStart(2, "0")}`;
 }
 
 function compileShader(type, source) {
@@ -383,4 +593,8 @@ function clamp(value, min, max) {
 
 function degToRad(value) {
   return value * Math.PI / 180;
+}
+
+function normalizeAngle(value) {
+  return Math.atan2(Math.sin(value), Math.cos(value));
 }
