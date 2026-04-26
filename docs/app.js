@@ -4,6 +4,8 @@ const video = document.getElementById("video");
 const emptyState = document.getElementById("emptyState");
 const controls = document.getElementById("controls");
 const fileName = document.getElementById("fileName");
+const menuButton = document.getElementById("menuButton");
+const radialMenu = document.getElementById("radialMenu");
 const playButton = document.getElementById("playButton");
 const motionButton = document.getElementById("motionButton");
 const headsetButton = document.getElementById("headsetButton");
@@ -43,9 +45,11 @@ let gazeTarget = null;
 let gazeStartedAt = 0;
 let lastGazeActionAt = 0;
 let isSeeking = false;
+let menuOpen = false;
 
 const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
+const maxPitch = degToRad(65);
 
 if (!gl) {
   emptyState.querySelector("p").textContent = "This browser does not support WebGL, which is needed for spherical playback.";
@@ -128,6 +132,8 @@ gl.disable(gl.DEPTH_TEST);
 document.getElementById("videoInput").addEventListener("change", openVideo);
 document.getElementById("videoInputSmall").addEventListener("change", openVideo);
 
+menuButton.addEventListener("click", toggleMenu);
+
 playButton.addEventListener("click", () => {
   if (video.paused) {
     video.play();
@@ -163,9 +169,9 @@ seekBar.addEventListener("input", () => {
 });
 
 canvas.addEventListener("click", () => {
-  controlsVisible = !controlsVisible;
-  controls.classList.toggle("is-hidden", !controlsVisible);
-  scheduleControlsHide();
+  if (menuOpen) {
+    setMenuOpen(false);
+  }
 });
 
 canvas.addEventListener("pointerdown", (event) => {
@@ -179,7 +185,7 @@ canvas.addEventListener("pointermove", (event) => {
   const dx = event.clientX - lastPointer.x;
   const dy = event.clientY - lastPointer.y;
   dragYaw -= dx * 0.004;
-  dragPitch = clamp(dragPitch - dy * 0.004, -Math.PI / 2, Math.PI / 2);
+  dragPitch = clamp(dragPitch - dy * 0.004, -maxPitch, maxPitch);
   lastPointer = { x: event.clientX, y: event.clientY };
 });
 
@@ -248,13 +254,13 @@ function handleOrientation(event) {
 
   latestYaw = alpha;
   if (Math.abs(orientation) === 90) {
-    latestPitch = clamp(gamma, -Math.PI / 2, Math.PI / 2);
+    latestPitch = clamp(gamma, -maxPitch, maxPitch);
   } else {
-    latestPitch = clamp(beta - Math.PI / 2, -Math.PI / 2, Math.PI / 2);
+    latestPitch = clamp(beta - Math.PI / 2, -maxPitch, maxPitch);
   }
 
   yaw = normalizeAngle(latestYaw - centerYaw);
-  pitch = latestPitch - centerPitch;
+  pitch = clamp(latestPitch - centerPitch, -maxPitch, maxPitch);
   updateGazePosition();
 }
 
@@ -380,8 +386,7 @@ function scheduleControlsHide() {
 
   hideControlsTimer = setTimeout(() => {
     if (!video.paused && controlsVisible) {
-      controlsVisible = false;
-      controls.classList.add("is-hidden");
+      setMenuOpen(false);
     }
   }, 3500);
 }
@@ -390,6 +395,16 @@ function showControlsForGaze() {
   controlsVisible = true;
   controls.classList.remove("is-hidden");
   clearTimeout(hideControlsTimer);
+}
+
+function toggleMenu() {
+  setMenuOpen(!menuOpen);
+}
+
+function setMenuOpen(open) {
+  menuOpen = open;
+  radialMenu.classList.toggle("is-hidden", !menuOpen);
+  menuButton.classList.toggle("is-active", menuOpen);
 }
 
 function updatePlayButton() {

@@ -1,6 +1,6 @@
 {
-  "name": "VR180 Local Player",
-  "short_name": "VR180",
+  "name": "VR Player",
+  "short_name": "VR Player",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#05070b",

@@ -164,6 +164,78 @@ video {
   flex-wrap: wrap;
 }
 
+.timeline-panel {
+  width: 100%;
+}
+
+.radial-menu {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: min(76vw, 430px);
+  height: min(76vw, 430px);
+  max-width: min(76vh, 430px);
+  max-height: min(76vh, 430px);
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, rgba(20, 184, 166, 0.24) 0 20%, rgba(15, 23, 42, 0.78) 21% 62%, rgba(5, 7, 11, 0.32) 63%);
+  backdrop-filter: blur(16px);
+  pointer-events: auto;
+}
+
+.radial-item {
+  position: absolute;
+  width: 96px;
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: 13px;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.radial-play {
+  left: 50%;
+  top: 17%;
+}
+
+.radial-motion {
+  left: 75%;
+  top: 25%;
+}
+
+.radial-headset {
+  left: 83%;
+  top: 50%;
+}
+
+.radial-format {
+  left: 75%;
+  top: 75%;
+}
+
+.radial-flip {
+  left: 50%;
+  top: 83%;
+}
+
+.radial-recenter {
+  left: 25%;
+  top: 75%;
+}
+
+.radial-fullscreen {
+  left: 17%;
+  top: 50%;
+}
+
+.radial-open {
+  left: 25%;
+  top: 25%;
+}
+
 .seek-row {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto;
