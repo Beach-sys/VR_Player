@@ -20,7 +20,7 @@ const gazeProgress = document.getElementById("gazeProgress");
 
 let headsetMode = true;
 let sideBySide = true;
-let videoFlipY = true;
+let videoFlipY = false;
 let motionEnabled = false;
 let controlsVisible = true;
 let yaw = 0;
@@ -237,6 +237,10 @@ async function enableMotion() {
 
 function handleOrientation(event) {
   if (event.alpha == null || event.beta == null || event.gamma == null) return;
+  if (motionEnabled && headsetMode) {
+    showControlsForGaze();
+  }
+
   const orientation = screen.orientation ? screen.orientation.angle : window.orientation || 0;
   const alpha = degToRad(event.alpha);
   const beta = degToRad(event.beta);
@@ -382,6 +386,12 @@ function scheduleControlsHide() {
   }, 3500);
 }
 
+function showControlsForGaze() {
+  controlsVisible = true;
+  controls.classList.remove("is-hidden");
+  clearTimeout(hideControlsTimer);
+}
+
 function updatePlayButton() {
   playButton.textContent = video.paused ? "Play" : "Pause";
 }
@@ -420,10 +430,14 @@ function updateGazePosition() {
 }
 
 function updateGazeControls() {
-  if (!motionEnabled || !controlsVisible) {
+  if (!motionEnabled) {
     gazePointer.classList.add("is-hidden");
     clearGazeTarget();
     return;
+  }
+
+  if (headsetMode && !controlsVisible) {
+    showControlsForGaze();
   }
 
   gazePointer.classList.remove("is-hidden");
