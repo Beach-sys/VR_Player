@@ -51,11 +51,14 @@ let menuOpen = false;
 let hudInteractive = true;
 let recenterTimer = 0;
 let recenterInterval = 0;
+let lastMotionAt = 0;
+let lastMotionYaw = 0;
+let lastMotionPitch = 0;
 
 const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
-const maxPitch = degToRad(88);
 const hudPitchAnchor = degToRad(-25);
+const pointerIdleMs = 1800;
 
 if (!gl) {
   emptyState.querySelector("p").textContent = "This browser does not support WebGL, which is needed for spherical playback.";
@@ -191,7 +194,7 @@ canvas.addEventListener("pointermove", (event) => {
   const dx = event.clientX - lastPointer.x;
   const dy = event.clientY - lastPointer.y;
   dragYaw -= dx * 0.004;
-  dragPitch = clamp(dragPitch - dy * 0.004, -maxPitch, maxPitch);
+  dragPitch -= dy * 0.004;
   lastPointer = { x: event.clientX, y: event.clientY };
 });
 
@@ -260,13 +263,18 @@ function handleOrientation(event) {
 
   latestYaw = alpha;
   if (Math.abs(orientation) === 90) {
-    latestPitch = clamp(gamma, -maxPitch, maxPitch);
+    latestPitch = gamma;
   } else {
-    latestPitch = clamp(beta - Math.PI / 2, -maxPitch, maxPitch);
+    latestPitch = beta - Math.PI / 2;
   }
 
   yaw = normalizeAngle(latestYaw - centerYaw);
-  pitch = clamp(latestPitch - centerPitch, -maxPitch, maxPitch);
+  pitch = latestPitch - centerPitch;
+  if (Math.abs(normalizeAngle(yaw - lastMotionYaw)) > 0.003 || Math.abs(pitch - lastMotionPitch) > 0.003) {
+    lastMotionAt = performance.now();
+    lastMotionYaw = yaw;
+    lastMotionPitch = pitch;
+  }
   updateGazePosition();
 }
 
@@ -279,6 +287,7 @@ function applyRecenter() {
   pitch = 0;
   updateGazePosition();
   updateWorldHudPosition();
+  lastMotionAt = performance.now();
 }
 
 function startRecenterCountdown() {
@@ -476,13 +485,22 @@ function seekToRatio(ratio) {
 }
 
 function updateGazePosition() {
-  gazeX = window.innerWidth / 2;
-  gazeY = window.innerHeight / 2;
+  const xRange = window.innerWidth * 0.34;
+  const yRange = window.innerHeight * 0.34;
+  gazeX = clamp(window.innerWidth / 2 + normalizeAngle(yaw + dragYaw) * xRange, 18, window.innerWidth - 18);
+  gazeY = clamp(window.innerHeight / 2 + (pitch + dragPitch) * yRange, 18, window.innerHeight - 18);
 }
 
 function updateGazeControls() {
   if (!motionEnabled) {
     gazePointer.classList.add("is-hidden");
+    clearGazeTarget();
+    return;
+  }
+
+  if (performance.now() - lastMotionAt > pointerIdleMs) {
+    gazePointer.classList.add("is-hidden");
+    gazeProgress.style.setProperty("--gaze-progress", "0deg");
     clearGazeTarget();
     return;
   }
@@ -534,7 +552,7 @@ function updateWorldHudPosition() {
   if (!controlsVisible) return;
 
   const viewYaw = normalizeAngle(yaw + dragYaw);
-  const viewPitch = clamp(pitch + dragPitch, -maxPitch, maxPitch);
+  const viewPitch = pitch + dragPitch;
   const horizontalScale = window.innerWidth / degToRad(headsetMode ? 72 : 82);
   const verticalScale = window.innerHeight / degToRad(62);
   const offsetX = -viewYaw * horizontalScale;
@@ -626,8 +644,7 @@ function makeHalfSphere(longitudes, latitudes, radius) {
 
 function makeViewProjection(aspect, viewYaw, viewPitch) {
   const projection = perspective(degToRad(headsetMode ? 92 : 82), aspect, 0.1, 100);
-  const rotation = multiply(rotateX(-viewPitch), rotateY(-viewYaw));
-  return multiply(projection, rotation);
+  return multiply(projection, lookRotation(viewYaw, viewPitch));
 }
 
 function perspective(fovy, aspect, near, far) {
@@ -661,6 +678,53 @@ function rotateY(angle) {
     s, 0, c, 0,
     0, 0, 0, 1
   ]);
+}
+
+function lookRotation(viewYaw, viewPitch) {
+  const cp = Math.cos(viewPitch);
+  const forward = normalizeVector([
+    Math.sin(viewYaw) * cp,
+    Math.sin(viewPitch),
+    -Math.cos(viewYaw) * cp
+  ]);
+  const fallbackRight = normalizeVector([Math.cos(viewYaw), 0, Math.sin(viewYaw)]);
+  let right = cross(forward, [0, 1, 0]);
+
+  if (length(right) < 0.0001) {
+    right = fallbackRight;
+  } else {
+    right = normalizeVector(right);
+  }
+
+  const up = normalizeVector(cross(right, forward));
+
+  return new Float32Array([
+    right[0], up[0], -forward[0], 0,
+    right[1], up[1], -forward[1], 0,
+    right[2], up[2], -forward[2], 0,
+    0, 0, 0, 1
+  ]);
+}
+
+function cross(a, b) {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0]
+  ];
+}
+
+function length(vector) {
+  return Math.hypot(vector[0], vector[1], vector[2]);
+}
+
+function normalizeVector(vector) {
+  const vectorLength = length(vector) || 1;
+  return [
+    vector[0] / vectorLength,
+    vector[1] / vectorLength,
+    vector[2] / vectorLength
+  ];
 }
 
 function multiply(a, b) {
