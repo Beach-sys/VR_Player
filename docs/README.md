@@ -1,6 +1,6 @@
-# VR180 Local Player Web App
+# VR Local Player Web App
 
-This is the GitHub Pages version of the local VR180 player. It runs in the browser on your iPhone, opens a local video file from Files, and renders side-by-side VR180 video in a split headset view.
+This is the GitHub Pages version of the local VR player. It runs in the browser on your iPhone, opens a local video file from Files, and renders side-by-side VR180 video in a split headset view.
 
 ## GitHub Pages setup
 
