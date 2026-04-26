@@ -35,6 +35,9 @@ let centerYaw = 0;
 let centerPitch = 0;
 let latestYaw = 0;
 let latestPitch = 0;
+let currentQuat = [0, 0, 0, 1];
+let centerQuat = [0, 0, 0, 1];
+let viewQuat = [0, 0, 0, 1];
 let dragging = false;
 let lastPointer = { x: 0, y: 0 };
 let hideControlsTimer = 0;
@@ -54,11 +57,14 @@ let recenterInterval = 0;
 let lastMotionAt = 0;
 let lastMotionYaw = 0;
 let lastMotionPitch = 0;
+let lastLookDownAt = 0;
 
 const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
 const hudPitchAnchor = degToRad(-25);
 const pointerIdleMs = 1800;
+const timelineVisibleMs = 2600;
+const lookDownThreshold = degToRad(18);
 
 if (!gl) {
   emptyState.querySelector("p").textContent = "This browser does not support WebGL, which is needed for spherical playback.";
@@ -261,26 +267,28 @@ function handleOrientation(event) {
   const beta = degToRad(event.beta);
   const gamma = degToRad(event.gamma);
 
-  latestYaw = alpha;
-  if (Math.abs(orientation) === 90) {
-    latestPitch = gamma;
-  } else {
-    latestPitch = beta - Math.PI / 2;
-  }
+  currentQuat = deviceOrientationQuaternion(alpha, beta, gamma, degToRad(orientation || 0));
+  viewQuat = qNormalize(qMultiply(qConjugate(centerQuat), currentQuat));
+  updateAnglesFromQuat();
 
-  yaw = normalizeAngle(latestYaw - centerYaw);
-  pitch = latestPitch - centerPitch;
   if (Math.abs(normalizeAngle(yaw - lastMotionYaw)) > 0.003 || Math.abs(pitch - lastMotionPitch) > 0.003) {
     lastMotionAt = performance.now();
     lastMotionYaw = yaw;
     lastMotionPitch = pitch;
   }
+
+  if (pitch > lookDownThreshold) {
+    lastLookDownAt = performance.now();
+  }
+
   updateGazePosition();
 }
 
 function applyRecenter() {
-  centerYaw = latestYaw;
-  centerPitch = latestPitch;
+  centerQuat = currentQuat.slice();
+  viewQuat = [0, 0, 0, 1];
+  centerYaw = 0;
+  centerPitch = 0;
   dragYaw = 0;
   dragPitch = 0;
   yaw = 0;
@@ -563,6 +571,9 @@ function updateWorldHudPosition() {
 
   controls.style.transform = `translate(-50%, -50%) translate3d(${offsetX}px, ${offsetY}px, 0)`;
   controls.style.opacity = String(opacity);
+
+  const timelineVisible = menuOpen || performance.now() - lastLookDownAt < timelineVisibleMs;
+  controls.classList.toggle("timeline-hidden", !timelineVisible);
 }
 
 function activateGazeTarget(target) {
@@ -644,6 +655,10 @@ function makeHalfSphere(longitudes, latitudes, radius) {
 
 function makeViewProjection(aspect, viewYaw, viewPitch) {
   const projection = perspective(degToRad(headsetMode ? 92 : 82), aspect, 0.1, 100);
+  if (motionEnabled) {
+    const dragQuat = qFromYawPitch(dragYaw, dragPitch);
+    return multiply(projection, qToViewMatrix(qNormalize(qMultiply(viewQuat, dragQuat))));
+  }
   return multiply(projection, lookRotation(viewYaw, viewPitch));
 }
 
@@ -702,6 +717,98 @@ function lookRotation(viewYaw, viewPitch) {
     right[0], up[0], -forward[0], 0,
     right[1], up[1], -forward[1], 0,
     right[2], up[2], -forward[2], 0,
+    0, 0, 0, 1
+  ]);
+}
+
+function deviceOrientationQuaternion(alpha, beta, gamma, orient) {
+  const eulerQuat = qFromEulerYXZ(beta, alpha, -gamma);
+  const correction = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
+  const screenCorrection = qFromAxisAngle([0, 0, 1], -orient);
+  return qNormalize(qMultiply(qMultiply(eulerQuat, correction), screenCorrection));
+}
+
+function qFromEulerYXZ(x, y, z) {
+  const c1 = Math.cos(x / 2);
+  const c2 = Math.cos(y / 2);
+  const c3 = Math.cos(z / 2);
+  const s1 = Math.sin(x / 2);
+  const s2 = Math.sin(y / 2);
+  const s3 = Math.sin(z / 2);
+
+  return [
+    s1 * c2 * c3 + c1 * s2 * s3,
+    c1 * s2 * c3 - s1 * c2 * s3,
+    c1 * c2 * s3 - s1 * s2 * c3,
+    c1 * c2 * c3 + s1 * s2 * s3
+  ];
+}
+
+function qFromYawPitch(viewYaw, viewPitch) {
+  return qNormalize(qMultiply(qFromAxisAngle([0, 1, 0], viewYaw), qFromAxisAngle([1, 0, 0], viewPitch)));
+}
+
+function qFromAxisAngle(axis, angle) {
+  const half = angle / 2;
+  const s = Math.sin(half);
+  return [axis[0] * s, axis[1] * s, axis[2] * s, Math.cos(half)];
+}
+
+function qMultiply(a, b) {
+  return [
+    a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+    a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+    a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+    a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]
+  ];
+}
+
+function qConjugate(q) {
+  return [-q[0], -q[1], -q[2], q[3]];
+}
+
+function qNormalize(q) {
+  const l = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+  return [q[0] / l, q[1] / l, q[2] / l, q[3] / l];
+}
+
+function rotateVectorByQuat(q, vector) {
+  const vectorQuat = [vector[0], vector[1], vector[2], 0];
+  const rotated = qMultiply(qMultiply(q, vectorQuat), qConjugate(q));
+  return [rotated[0], rotated[1], rotated[2]];
+}
+
+function updateAnglesFromQuat() {
+  const forward = rotateVectorByQuat(viewQuat, [0, 0, -1]);
+  latestYaw = Math.atan2(forward[0], -forward[2]);
+  latestPitch = Math.asin(clamp(forward[1], -1, 1));
+  yaw = latestYaw;
+  pitch = latestPitch;
+}
+
+function qToViewMatrix(q) {
+  const qi = qConjugate(q);
+  const x = qi[0];
+  const y = qi[1];
+  const z = qi[2];
+  const w = qi[3];
+  const x2 = x + x;
+  const y2 = y + y;
+  const z2 = z + z;
+  const xx = x * x2;
+  const xy = x * y2;
+  const xz = x * z2;
+  const yy = y * y2;
+  const yz = y * z2;
+  const zz = z * z2;
+  const wx = w * x2;
+  const wy = w * y2;
+  const wz = w * z2;
+
+  return new Float32Array([
+    1 - (yy + zz), xy + wz, xz - wy, 0,
+    xy - wz, 1 - (xx + zz), yz + wx, 0,
+    xz + wy, yz - wx, 1 - (xx + yy), 0,
     0, 0, 0, 1
   ]);
 }

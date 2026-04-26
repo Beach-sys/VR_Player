@@ -228,6 +228,13 @@ video {
   border-radius: 8px;
   background: rgba(5, 7, 11, 0.58);
   backdrop-filter: blur(14px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.controls.timeline-hidden .timeline-panel {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
 }
 
 .radial-menu {
