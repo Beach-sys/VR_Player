@@ -79,8 +79,10 @@ attribute vec3 aPosition;
 attribute vec2 aTexCoord;
 uniform mat4 uMatrix;
 varying vec2 vTexCoord;
+varying vec3 vDirection;
 void main() {
   vTexCoord = aTexCoord;
+  vDirection = normalize(aPosition);
   gl_Position = uMatrix * vec4(aPosition, 1.0);
 }
 `);
@@ -90,16 +92,31 @@ precision mediump float;
 uniform sampler2D uVideo;
 uniform float uEye;
 uniform float uSourceLayout;
+uniform float uProjectionMode;
 uniform float uFlipY;
 varying vec2 vTexCoord;
+varying vec3 vDirection;
 void main() {
   vec2 uv = vTexCoord;
+
+  if (uProjectionMode > 0.5) {
+    vec3 dir = normalize(vDirection);
+    float forward = clamp(-dir.z, 0.0, 1.0);
+    float theta = acos(forward);
+    float radial = theta / 3.14159265;
+    float planarLength = max(length(dir.xy), 0.0001);
+    vec2 localUv = vec2(0.5) + vec2(dir.x, -dir.y) / planarLength * radial;
+    uv = localUv;
+  }
+
   if (uSourceLayout > 0.5) {
     uv.x = uv.x * 0.5 + uEye * 0.5;
   }
+
   if (uFlipY > 0.5) {
     uv.y = 1.0 - uv.y;
   }
+
   gl_FragColor = texture2D(uVideo, uv);
 }
 `);
@@ -117,6 +134,7 @@ const locations = {
   video: gl.getUniformLocation(program, "uVideo"),
   eye: gl.getUniformLocation(program, "uEye"),
   sourceLayout: gl.getUniformLocation(program, "uSourceLayout"),
+  projectionMode: gl.getUniformLocation(program, "uProjectionMode"),
   flipY: gl.getUniformLocation(program, "uFlipY")
 };
 
@@ -512,6 +530,7 @@ function render() {
     gl.uniformMatrix4fv(locations.matrix, false, matrix);
     gl.uniform1f(locations.eye, eye);
     gl.uniform1f(locations.sourceLayout, sideBySide ? 1 : 0);
+    gl.uniform1f(locations.projectionMode, 1);
     gl.uniform1f(locations.flipY, videoFlipY ? 1 : 0);
     gl.drawElements(gl.TRIANGLES, mesh.indices.length, gl.UNSIGNED_SHORT, 0);
   }
@@ -539,6 +558,7 @@ function renderXR(_time, frame) {
       gl.uniformMatrix4fv(locations.matrix, false, multiply(view.projectionMatrix, xrBackgroundViewMatrix(view.transform.inverse.matrix)));
       gl.uniform1f(locations.eye, view.eye === "right" ? 1 : 0);
       gl.uniform1f(locations.sourceLayout, sideBySide ? 1 : 0);
+      gl.uniform1f(locations.projectionMode, 1);
       gl.uniform1f(locations.flipY, videoFlipY ? 1 : 0);
       gl.drawElements(gl.TRIANGLES, mesh.indices.length, gl.UNSIGNED_SHORT, 0);
     }
