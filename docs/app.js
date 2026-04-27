@@ -536,7 +536,7 @@ function renderXR(_time, frame) {
     for (const view of pose.views) {
       const viewport = session.renderState.baseLayer.getViewport(view);
       gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-      gl.uniformMatrix4fv(locations.matrix, false, multiply(view.projectionMatrix, view.transform.inverse.matrix));
+      gl.uniformMatrix4fv(locations.matrix, false, multiply(view.projectionMatrix, xrBackgroundViewMatrix(view.transform.inverse.matrix)));
       gl.uniform1f(locations.eye, view.eye === "right" ? 1 : 0);
       gl.uniform1f(locations.sourceLayout, sideBySide ? 1 : 0);
       gl.uniform1f(locations.flipY, videoFlipY ? 1 : 0);
@@ -1002,6 +1002,14 @@ function qToViewMatrix(q) {
     xz + wy, yz - wx, 1 - (xx + yy), 0,
     0, 0, 0, 1
   ]);
+}
+
+function xrBackgroundViewMatrix(viewMatrix) {
+  const matrix = new Float32Array(viewMatrix);
+  matrix[12] = 0;
+  matrix[13] = 0;
+  matrix[14] = 0;
+  return matrix;
 }
 
 function qFromRotationMatrix(m) {
