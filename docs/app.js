@@ -11,6 +11,7 @@ const formatButton = document.getElementById("formatButton");
 const recenterButton = document.getElementById("recenterButton");
 const fullscreenButton = document.getElementById("fullscreenButton");
 const xrButton = document.getElementById("xrButton");
+const hideHudButton = document.getElementById("hideHudButton");
 const flipButton = document.getElementById("flipButton");
 const seekBar = document.getElementById("seekBar");
 const timeLabel = document.getElementById("timeLabel");
@@ -172,6 +173,7 @@ flipButton.addEventListener("click", () => {
 recenterButton.addEventListener("click", startRecenterCountdown);
 fullscreenButton.addEventListener("click", enterFullscreen);
 xrButton.addEventListener("click", toggleXR);
+hideHudButton.addEventListener("click", hideHud);
 closeInstallPrompt.addEventListener("click", () => {
   installPrompt.classList.add("is-hidden");
 });
@@ -181,9 +183,11 @@ seekBar.addEventListener("input", () => {
 });
 
 canvas.addEventListener("click", () => {
-  controlsVisible = !controlsVisible;
-  controls.classList.toggle("is-hidden", !controlsVisible);
-  scheduleControlsHide();
+  if (controlsVisible) {
+    hideHud();
+  } else {
+    showControlsForGaze();
+  }
 });
 
 canvas.addEventListener("pointerdown", (event) => {
@@ -586,6 +590,15 @@ function scheduleControlsHide() {
 function showControlsForGaze() {
   controlsVisible = true;
   controls.classList.remove("is-hidden");
+  clearTimeout(hideControlsTimer);
+}
+
+function hideHud() {
+  controlsVisible = false;
+  controls.classList.add("is-hidden");
+  gazePointer.classList.add("is-hidden");
+  gazeProgress.style.setProperty("--gaze-progress", "0deg");
+  clearGazeTarget();
   clearTimeout(hideControlsTimer);
 }
 
