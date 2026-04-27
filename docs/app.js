@@ -59,8 +59,10 @@ let lastMotionYaw = 0;
 let lastMotionPitch = 0;
 let lastLookDownAt = 0;
 let xrSession = null;
+let xrBaseReferenceSpace = null;
 let xrReferenceSpace = null;
 let xrSupported = false;
+let latestXRQuat = [0, 0, 0, 1];
 
 const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
@@ -302,6 +304,23 @@ function handleOrientation(event) {
 }
 
 function applyRecenter() {
+  if (xrSession && xrBaseReferenceSpace) {
+    const inverseOrientation = qConjugate(qNormalize(latestXRQuat));
+    xrReferenceSpace = xrBaseReferenceSpace.getOffsetReferenceSpace(
+      new XRRigidTransform(
+        { x: 0, y: 0, z: 0 },
+        {
+          x: inverseOrientation[0],
+          y: inverseOrientation[1],
+          z: inverseOrientation[2],
+          w: inverseOrientation[3]
+        }
+      )
+    );
+    lastMotionAt = performance.now();
+    return;
+  }
+
   centerQuat = currentQuat.slice();
   viewQuat = [0, 0, 0, 1];
   centerYaw = 0;
@@ -431,9 +450,12 @@ async function toggleXR() {
       domOverlay: { root: document.body }
     });
     xrSession.updateRenderState({ baseLayer: new XRWebGLLayer(xrSession, gl) });
-    xrReferenceSpace = await xrSession.requestReferenceSpace("local");
+    xrBaseReferenceSpace = await xrSession.requestReferenceSpace("local");
+    xrReferenceSpace = xrBaseReferenceSpace;
     xrButton.textContent = "Exit XR";
     xrButton.classList.add("is-active");
+    document.body.classList.add("xr-active");
+    document.body.classList.toggle("xr-dom-overlay", Boolean(xrSession.domOverlayState));
     controlsVisible = true;
     controls.classList.remove("is-hidden");
     xrSession.addEventListener("end", endXR);
@@ -445,9 +467,11 @@ async function toggleXR() {
 
 function endXR() {
   xrSession = null;
+  xrBaseReferenceSpace = null;
   xrReferenceSpace = null;
   xrButton.textContent = xrSupported ? "WebXR" : "No WebXR";
   xrButton.classList.toggle("is-active", false);
+  document.body.classList.remove("xr-active", "xr-dom-overlay");
   requestAnimationFrame(render);
 }
 
@@ -690,6 +714,13 @@ function updateFromXRView(view) {
   if (!view?.transform?.matrix) return;
 
   const matrix = view.transform.matrix;
+  const orientation = view.transform.orientation;
+  if (orientation) {
+    latestXRQuat = [orientation.x, orientation.y, orientation.z, orientation.w];
+  } else {
+    latestXRQuat = qFromRotationMatrix(matrix);
+  }
+
   const forward = normalizeVector([-matrix[8], -matrix[9], -matrix[10]]);
   yaw = Math.atan2(forward[0], -forward[2]);
   pitch = Math.asin(clamp(forward[1], -1, 1));
@@ -971,6 +1002,51 @@ function qToViewMatrix(q) {
     xz + wy, yz - wx, 1 - (xx + yy), 0,
     0, 0, 0, 1
   ]);
+}
+
+function qFromRotationMatrix(m) {
+  const m11 = m[0];
+  const m12 = m[4];
+  const m13 = m[8];
+  const m21 = m[1];
+  const m22 = m[5];
+  const m23 = m[9];
+  const m31 = m[2];
+  const m32 = m[6];
+  const m33 = m[10];
+  const trace = m11 + m22 + m33;
+  let x;
+  let y;
+  let z;
+  let w;
+
+  if (trace > 0) {
+    const s = 0.5 / Math.sqrt(trace + 1.0);
+    w = 0.25 / s;
+    x = (m32 - m23) * s;
+    y = (m13 - m31) * s;
+    z = (m21 - m12) * s;
+  } else if (m11 > m22 && m11 > m33) {
+    const s = 2.0 * Math.sqrt(1.0 + m11 - m22 - m33);
+    w = (m32 - m23) / s;
+    x = 0.25 * s;
+    y = (m12 + m21) / s;
+    z = (m13 + m31) / s;
+  } else if (m22 > m33) {
+    const s = 2.0 * Math.sqrt(1.0 + m22 - m11 - m33);
+    w = (m13 - m31) / s;
+    x = (m12 + m21) / s;
+    y = 0.25 * s;
+    z = (m23 + m32) / s;
+  } else {
+    const s = 2.0 * Math.sqrt(1.0 + m33 - m11 - m22);
+    w = (m21 - m12) / s;
+    x = (m13 + m31) / s;
+    y = (m23 + m32) / s;
+    z = 0.25 * s;
+  }
+
+  return qNormalize([x, y, z, w]);
 }
 
 function cross(a, b) {

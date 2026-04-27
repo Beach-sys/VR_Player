@@ -96,6 +96,24 @@ video {
   pointer-events: none;
 }
 
+body.xr-active .controls {
+  background: none;
+}
+
+body.xr-dom-overlay .controls {
+  padding: 16px;
+}
+
+body.xr-dom-overlay .top-row,
+body.xr-dom-overlay .bottom-panel {
+  width: min(720px, 92vw);
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 11, 0.62);
+  backdrop-filter: blur(14px);
+}
+
 .top-row,
 .bottom-panel {
   pointer-events: auto;
