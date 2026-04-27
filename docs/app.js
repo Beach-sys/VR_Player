@@ -4,8 +4,6 @@ const video = document.getElementById("video");
 const emptyState = document.getElementById("emptyState");
 const controls = document.getElementById("controls");
 const fileName = document.getElementById("fileName");
-const menuButton = document.getElementById("menuButton");
-const radialMenu = document.getElementById("radialMenu");
 const playButton = document.getElementById("playButton");
 const motionButton = document.getElementById("motionButton");
 const headsetButton = document.getElementById("headsetButton");
@@ -47,12 +45,12 @@ let videoFrameCallbackStarted = false;
 let lastUploadedVideoTime = -1;
 let gazeX = window.innerWidth / 2;
 let gazeY = window.innerHeight / 2;
+let displayedGazeX = window.innerWidth / 2;
+let displayedGazeY = window.innerHeight / 2;
 let gazeTarget = null;
 let gazeStartedAt = 0;
 let lastGazeActionAt = 0;
 let isSeeking = false;
-let menuOpen = false;
-let hudInteractive = true;
 let recenterTimer = 0;
 let recenterInterval = 0;
 let lastMotionAt = 0;
@@ -65,8 +63,6 @@ let xrSupported = false;
 
 const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
-const hudPitchAnchor = degToRad(-25);
-const pointerIdleMs = 1800;
 const timelineVisibleMs = 2600;
 const lookDownThreshold = degToRad(18);
 
@@ -151,8 +147,6 @@ gl.disable(gl.DEPTH_TEST);
 document.getElementById("videoInput").addEventListener("change", openVideo);
 document.getElementById("videoInputSmall").addEventListener("change", openVideo);
 
-menuButton.addEventListener("click", toggleMenu);
-
 playButton.addEventListener("click", () => {
   if (video.paused) {
     video.play();
@@ -189,9 +183,9 @@ seekBar.addEventListener("input", () => {
 });
 
 canvas.addEventListener("click", () => {
-  if (menuOpen) {
-    setMenuOpen(false);
-  }
+  controlsVisible = !controlsVisible;
+  controls.classList.toggle("is-hidden", !controlsVisible);
+  scheduleControlsHide();
 });
 
 canvas.addEventListener("pointerdown", (event) => {
@@ -300,14 +294,12 @@ function applyRecenter() {
   yaw = 0;
   pitch = 0;
   updateGazePosition();
-  updateWorldHudPosition();
   lastMotionAt = performance.now();
 }
 
 function startRecenterCountdown() {
   clearTimeout(recenterTimer);
   clearInterval(recenterInterval);
-  setMenuOpen(false);
   showControlsForGaze();
 
   let remaining = 3;
@@ -436,7 +428,6 @@ function render() {
   }
 
   resize();
-  updateWorldHudPosition();
   updateGazeControls();
   updateTimeline();
   uploadVideoTextureIfNeeded();
@@ -471,6 +462,7 @@ function renderXR(_time, frame) {
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   if (pose) {
+    updateFromXRView(pose.views[0]);
     for (const view of pose.views) {
       const viewport = session.renderState.baseLayer.getViewport(view);
       gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
@@ -539,7 +531,8 @@ function scheduleControlsHide() {
 
   hideControlsTimer = setTimeout(() => {
     if (!video.paused && controlsVisible) {
-      setMenuOpen(false);
+      controlsVisible = false;
+      controls.classList.add("is-hidden");
     }
   }, 3500);
 }
@@ -548,16 +541,6 @@ function showControlsForGaze() {
   controlsVisible = true;
   controls.classList.remove("is-hidden");
   clearTimeout(hideControlsTimer);
-}
-
-function toggleMenu() {
-  setMenuOpen(!menuOpen);
-}
-
-function setMenuOpen(open) {
-  menuOpen = open;
-  radialMenu.classList.toggle("is-hidden", !menuOpen);
-  menuButton.classList.toggle("is-active", menuOpen);
 }
 
 function updatePlayButton() {
@@ -604,29 +587,12 @@ function updateGazeControls() {
     return;
   }
 
-  if (performance.now() - lastMotionAt > pointerIdleMs) {
-    gazePointer.classList.add("is-hidden");
-    gazeProgress.style.setProperty("--gaze-progress", "0deg");
-    clearGazeTarget();
-    return;
-  }
-
-  if (!hudInteractive) {
-    gazePointer.classList.remove("is-hidden");
-    gazePointer.style.transform = `translate3d(${gazeX}px, ${gazeY}px, 0)`;
-    gazeProgress.style.setProperty("--gaze-progress", "0deg");
-    clearGazeTarget();
-    return;
-  }
-
-  if (headsetMode && !controlsVisible) {
-    showControlsForGaze();
-  }
-
+  displayedGazeX += (gazeX - displayedGazeX) * 0.28;
+  displayedGazeY += (gazeY - displayedGazeY) * 0.28;
   gazePointer.classList.remove("is-hidden");
-  gazePointer.style.transform = `translate3d(${gazeX}px, ${gazeY}px, 0)`;
+  gazePointer.style.transform = `translate3d(${displayedGazeX}px, ${displayedGazeY}px, 0)`;
 
-  const element = document.elementFromPoint(gazeX, gazeY);
+  const element = document.elementFromPoint(displayedGazeX, displayedGazeY);
   const target = element?.closest("[data-gaze-action]");
   const now = performance.now();
 
@@ -654,30 +620,31 @@ function updateGazeControls() {
   }
 }
 
-function updateWorldHudPosition() {
-  if (!controlsVisible) return;
+function updateFromXRView(view) {
+  if (!view?.transform?.matrix) return;
 
-  const viewYaw = normalizeAngle(yaw + dragYaw);
-  const viewPitch = pitch + dragPitch;
-  const horizontalScale = window.innerWidth / degToRad(headsetMode ? 72 : 82);
-  const verticalScale = window.innerHeight / degToRad(62);
-  const offsetX = -viewYaw * horizontalScale;
-  const offsetY = (viewPitch - hudPitchAnchor) * verticalScale;
-  const distance = Math.hypot(offsetX / window.innerWidth, offsetY / window.innerHeight);
-  const opacity = clamp(1.15 - distance * 1.8, 0, 1);
-  hudInteractive = opacity > 0.18;
+  const matrix = view.transform.matrix;
+  const forward = normalizeVector([-matrix[8], -matrix[9], -matrix[10]]);
+  yaw = Math.atan2(forward[0], -forward[2]);
+  pitch = Math.asin(clamp(forward[1], -1, 1));
 
-  controls.style.transform = `translate(-50%, -50%) translate3d(${offsetX}px, ${offsetY}px, 0)`;
-  controls.style.opacity = String(opacity);
+  if (Math.abs(normalizeAngle(yaw - lastMotionYaw)) > 0.003 || Math.abs(pitch - lastMotionPitch) > 0.003) {
+    lastMotionAt = performance.now();
+    lastMotionYaw = yaw;
+    lastMotionPitch = pitch;
+  }
 
-  const timelineVisible = menuOpen || performance.now() - lastLookDownAt < timelineVisibleMs;
-  controls.classList.toggle("timeline-hidden", !timelineVisible);
+  if (pitch > lookDownThreshold) {
+    lastLookDownAt = performance.now();
+  }
+
+  updateGazePosition();
 }
 
 function activateGazeTarget(target) {
   if (target === seekBar) {
     const rect = seekBar.getBoundingClientRect();
-    seekToRatio((gazeX - rect.left) / rect.width);
+    seekToRatio((displayedGazeX - rect.left) / rect.width);
     return;
   }
 

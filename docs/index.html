@@ -29,30 +29,26 @@
 
     <section id="controls" class="controls is-hidden" aria-label="Playback controls">
       <div class="top-row">
-        <button id="menuButton" type="button" class="primary-button" data-gaze-action="click">Menu</button>
-        <div id="fileName" class="file-name"></div>
-      </div>
-
-      <div id="radialMenu" class="radial-menu is-hidden" aria-label="Menu options">
-        <button id="playButton" type="button" class="primary-button radial-item radial-play" data-gaze-action="click">Pause</button>
-        <button id="motionButton" type="button" class="tool-button radial-item radial-motion" data-gaze-action="click">Enable Motion</button>
-        <button id="headsetButton" type="button" class="tool-button radial-item radial-headset is-active" data-gaze-action="click">Headset</button>
-        <button id="formatButton" type="button" class="tool-button radial-item radial-format is-active" data-gaze-action="click">SBS 3D</button>
-        <button id="flipButton" type="button" class="tool-button radial-item radial-flip" data-gaze-action="click">Flip Off</button>
-        <button id="recenterButton" type="button" class="tool-button radial-item radial-recenter" data-gaze-action="click">Recenter</button>
-        <button id="xrButton" type="button" class="tool-button radial-item radial-xr" data-gaze-action="click">WebXR</button>
-        <button id="fullscreenButton" type="button" class="tool-button radial-item radial-fullscreen" data-gaze-action="click">Fullscreen</button>
-        <label class="tool-button radial-item radial-open" data-gaze-action="open">
+        <label class="tool-button" data-gaze-action="open">
           <input id="videoInputSmall" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv">
           Open
         </label>
+        <div id="fileName" class="file-name"></div>
       </div>
 
-      <div class="bottom-panel timeline-panel">
+      <div class="bottom-panel">
         <div class="seek-row">
           <input id="seekBar" type="range" min="0" max="1000" value="0" step="1" aria-label="Video timeline" data-gaze-action="seek">
           <div id="timeLabel" class="time-label">0:00 / 0:00</div>
         </div>
+        <button id="playButton" type="button" class="primary-button" data-gaze-action="click">Pause</button>
+        <button id="motionButton" type="button" class="tool-button" data-gaze-action="click">Enable Motion</button>
+        <button id="headsetButton" type="button" class="tool-button is-active" data-gaze-action="click">Headset</button>
+        <button id="formatButton" type="button" class="tool-button is-active" data-gaze-action="click">SBS 3D</button>
+        <button id="flipButton" type="button" class="tool-button" data-gaze-action="click">Flip Off</button>
+        <button id="recenterButton" type="button" class="tool-button" data-gaze-action="click">Recenter</button>
+        <button id="xrButton" type="button" class="tool-button" data-gaze-action="click">WebXR</button>
+        <button id="fullscreenButton" type="button" class="tool-button" data-gaze-action="click">Fullscreen</button>
       </div>
     </section>
 
