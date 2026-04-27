@@ -65,6 +65,7 @@ const gazeDwellMs = 900;
 const gazeCooldownMs = 650;
 const timelineVisibleMs = 2600;
 const lookDownThreshold = degToRad(18);
+const hudIdleMs = 2200;
 
 if (!gl) {
   emptyState.querySelector("p").textContent = "This browser does not support WebGL, which is needed for spherical playback.";
@@ -258,9 +259,6 @@ async function enableMotion() {
 
 function handleOrientation(event) {
   if (event.alpha == null || event.beta == null || event.gamma == null) return;
-  if (motionEnabled && headsetMode) {
-    showControlsForGaze();
-  }
 
   const orientation = screen.orientation ? screen.orientation.angle : window.orientation || 0;
   const alpha = degToRad(event.alpha);
@@ -275,6 +273,7 @@ function handleOrientation(event) {
     lastMotionAt = performance.now();
     lastMotionYaw = yaw;
     lastMotionPitch = pitch;
+    showControlsForGaze();
   }
 
   if (pitch > lookDownThreshold) {
@@ -428,6 +427,8 @@ function render() {
   }
 
   resize();
+  updateWorldHudPosition();
+  updateIdleVisibility();
   updateGazeControls();
   updateTimeline();
   uploadVideoTextureIfNeeded();
@@ -463,6 +464,9 @@ function renderXR(_time, frame) {
 
   if (pose) {
     updateFromXRView(pose.views[0]);
+    updateWorldHudPosition();
+    updateIdleVisibility();
+    updateGazeControls();
     for (const view of pose.views) {
       const viewport = session.renderState.baseLayer.getViewport(view);
       gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
@@ -587,6 +591,13 @@ function updateGazeControls() {
     return;
   }
 
+  if (isHeadStill()) {
+    gazePointer.classList.add("is-hidden");
+    gazeProgress.style.setProperty("--gaze-progress", "0deg");
+    clearGazeTarget();
+    return;
+  }
+
   displayedGazeX += (gazeX - displayedGazeX) * 0.28;
   displayedGazeY += (gazeY - displayedGazeY) * 0.28;
   gazePointer.classList.remove("is-hidden");
@@ -632,6 +643,7 @@ function updateFromXRView(view) {
     lastMotionAt = performance.now();
     lastMotionYaw = yaw;
     lastMotionPitch = pitch;
+    showControlsForGaze();
   }
 
   if (pitch > lookDownThreshold) {
@@ -639,6 +651,34 @@ function updateFromXRView(view) {
   }
 
   updateGazePosition();
+}
+
+function updateWorldHudPosition() {
+  if (!controlsVisible) return;
+
+  const viewYaw = normalizeAngle(yaw + dragYaw);
+  const viewPitch = pitch + dragPitch;
+  const horizontalScale = window.innerWidth / degToRad(headsetMode ? 72 : 82);
+  const verticalScale = window.innerHeight / degToRad(62);
+  const offsetX = -viewYaw * horizontalScale;
+  const offsetY = (viewPitch - degToRad(-25)) * verticalScale;
+  controls.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0)`;
+}
+
+function updateIdleVisibility() {
+  if (!motionEnabled || !headsetMode || !controlsVisible || !isHeadStill()) {
+    return;
+  }
+
+  controlsVisible = false;
+  controls.classList.add("is-hidden");
+  gazePointer.classList.add("is-hidden");
+  gazeProgress.style.setProperty("--gaze-progress", "0deg");
+  clearGazeTarget();
+}
+
+function isHeadStill() {
+  return performance.now() - lastMotionAt > hudIdleMs;
 }
 
 function activateGazeTarget(target) {
