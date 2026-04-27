@@ -21,7 +21,7 @@ const calibrationCount = document.getElementById("calibrationCount");
 const gazePointer = document.getElementById("gazePointer");
 const gazeProgress = document.getElementById("gazeProgress");
 
-let headsetMode = true;
+let headsetMode = false;
 let sideBySide = true;
 let videoFlipY = false;
 let motionEnabled = false;
@@ -86,12 +86,12 @@ const fragmentShader = compileShader(gl.FRAGMENT_SHADER, `
 precision mediump float;
 uniform sampler2D uVideo;
 uniform float uEye;
-uniform float uSideBySide;
+uniform float uSourceLayout;
 uniform float uFlipY;
 varying vec2 vTexCoord;
 void main() {
   vec2 uv = vTexCoord;
-  if (uSideBySide > 0.5) {
+  if (uSourceLayout > 0.5) {
     uv.x = uv.x * 0.5 + uEye * 0.5;
   }
   if (uFlipY > 0.5) {
@@ -113,7 +113,7 @@ const locations = {
   matrix: gl.getUniformLocation(program, "uMatrix"),
   video: gl.getUniformLocation(program, "uVideo"),
   eye: gl.getUniformLocation(program, "uEye"),
-  sideBySide: gl.getUniformLocation(program, "uSideBySide"),
+  sourceLayout: gl.getUniformLocation(program, "uSourceLayout"),
   flipY: gl.getUniformLocation(program, "uFlipY")
 };
 
@@ -159,13 +159,10 @@ playButton.addEventListener("click", () => {
 
 motionButton.addEventListener("click", enableMotion);
 headsetButton.addEventListener("click", () => {
-  headsetMode = !headsetMode;
-  headsetButton.classList.toggle("is-active", headsetMode);
+  setHeadsetMode(!headsetMode);
 });
 formatButton.addEventListener("click", () => {
-  sideBySide = !sideBySide;
-  formatButton.classList.toggle("is-active", sideBySide);
-  formatButton.textContent = sideBySide ? "SBS 3D" : "Mono";
+  setSideBySide(!sideBySide);
 });
 flipButton.addEventListener("click", () => {
   videoFlipY = !videoFlipY;
@@ -233,9 +230,26 @@ function openVideo(event) {
   emptyState.classList.add("is-hidden");
   controls.classList.remove("is-hidden");
   controlsVisible = true;
+  setSideBySide(true);
   updatePlayButton();
   updateTimeline();
   scheduleControlsHide();
+}
+
+function setHeadsetMode(enabled) {
+  headsetMode = enabled;
+  headsetButton.classList.toggle("is-active", headsetMode);
+  headsetButton.textContent = headsetMode ? "Headset On" : "Headset";
+
+  if (headsetMode) {
+    setSideBySide(true);
+  }
+}
+
+function setSideBySide(enabled) {
+  sideBySide = enabled;
+  formatButton.classList.toggle("is-active", sideBySide);
+  formatButton.textContent = sideBySide ? "SBS 3D" : "Mono";
 }
 
 async function enableMotion() {
@@ -251,7 +265,7 @@ async function enableMotion() {
     motionButton.classList.add("is-active");
     controlsVisible = true;
     controls.classList.remove("is-hidden");
-    applyRecenter();
+    startMotionCalibration();
   } catch {
     motionButton.textContent = "Motion Blocked";
   }
@@ -297,12 +311,35 @@ function applyRecenter() {
 }
 
 function startRecenterCountdown() {
+  startCalibration({
+    title: "Calibrating View",
+    buttonText: "Calibrating",
+    doneText: motionEnabled ? "Motion On" : "Enable Motion"
+  });
+}
+
+function startMotionCalibration() {
+  startCalibration({
+    title: "Motion Setup",
+    buttonText: "Setting Up",
+    doneText: "Motion On"
+  });
+}
+
+function startCalibration({ title, buttonText, doneText }) {
   clearTimeout(recenterTimer);
   clearInterval(recenterInterval);
   showControlsForGaze();
 
+  const heading = calibrationOverlay.querySelector("h2");
+  const message = calibrationOverlay.querySelector("p");
+  if (heading) heading.textContent = title;
+  if (message) {
+    message.textContent = "Put the phone in the headset, face your normal forward position, and hold still.";
+  }
+
   let remaining = 3;
-  recenterButton.textContent = "Calibrating";
+  recenterButton.textContent = buttonText;
   calibrationCount.textContent = String(remaining);
   calibrationOverlay.classList.remove("is-hidden");
   gazeProgress.style.setProperty("--gaze-progress", "0deg");
@@ -317,6 +354,7 @@ function startRecenterCountdown() {
     clearInterval(recenterInterval);
     applyRecenter();
     recenterButton.textContent = "Recenter";
+    motionButton.textContent = doneText;
     calibrationOverlay.classList.add("is-hidden");
     showControlsForGaze();
   }, 3200);
@@ -435,7 +473,7 @@ function render() {
 
   gl.clearColor(0.02, 0.03, 0.05, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
-  const eyes = headsetMode ? 2 : 1;
+  const eyes = shouldRenderPhoneSBS() ? 2 : 1;
   const eyeWidth = canvas.width / eyes;
 
   for (let eye = 0; eye < eyes; eye++) {
@@ -444,8 +482,8 @@ function render() {
     const aspect = eyeWidth / canvas.height;
     const matrix = makeViewProjection(aspect, yaw + dragYaw, pitch + dragPitch);
     gl.uniformMatrix4fv(locations.matrix, false, matrix);
-    gl.uniform1f(locations.eye, eyes === 2 ? eye : 0);
-    gl.uniform1f(locations.sideBySide, sideBySide ? 1 : 0);
+    gl.uniform1f(locations.eye, eye);
+    gl.uniform1f(locations.sourceLayout, sideBySide ? 1 : 0);
     gl.uniform1f(locations.flipY, videoFlipY ? 1 : 0);
     gl.drawElements(gl.TRIANGLES, mesh.indices.length, gl.UNSIGNED_SHORT, 0);
   }
@@ -472,7 +510,7 @@ function renderXR(_time, frame) {
       gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
       gl.uniformMatrix4fv(locations.matrix, false, multiply(view.projectionMatrix, view.transform.inverse.matrix));
       gl.uniform1f(locations.eye, view.eye === "right" ? 1 : 0);
-      gl.uniform1f(locations.sideBySide, sideBySide ? 1 : 0);
+      gl.uniform1f(locations.sourceLayout, sideBySide ? 1 : 0);
       gl.uniform1f(locations.flipY, videoFlipY ? 1 : 0);
       gl.drawElements(gl.TRIANGLES, mesh.indices.length, gl.UNSIGNED_SHORT, 0);
     }
@@ -489,6 +527,10 @@ function resize() {
     canvas.width = width;
     canvas.height = height;
   }
+}
+
+function shouldRenderPhoneSBS() {
+  return headsetMode && sideBySide && !xrSession;
 }
 
 function uploadVideoTextureIfNeeded() {
